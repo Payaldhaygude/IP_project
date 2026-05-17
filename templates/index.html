@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Number Plate Detection System</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --green-dark:  #1a5c2a;
+      --green-mid:   #246b35;
+      --green-light: #e8f5eb;
+      --green-border:#b2d8bb;
+      --gold:        #f5a623;
+      --text:        #1a2e1f;
+      --muted:       #5a7060;
+      --white:       #ffffff;
+      --card-bg:     #f4faf5;
+      --red:         #c0392b;
+    }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: var(--green-light);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── NAVBAR ── */
+    nav {
+      background: var(--green-dark);
+      color: var(--white);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 28px;
+      height: 64px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .nav-brand { display: flex; align-items: center; gap: 14px; }
+    .nav-logo {
+      width: 44px; height: 44px; border-radius: 50%;
+      background: var(--white); display: flex; align-items: center;
+      justify-content: center; font-size: 22px;
+    }
+    .nav-title { font-size: 17px; font-weight: 700; line-height: 1.2; }
+    .nav-sub { font-size: 11px; color: #a8d5b0; letter-spacing: .5px; }
+    .nav-right { display: flex; align-items: center; gap: 12px; }
+    .btn-rto {
+      background: transparent; border: 2px solid var(--white);
+      color: var(--white); padding: 6px 18px; border-radius: 4px;
+      font-size: 13px; font-weight: 600; cursor: pointer;
+      transition: background .2s;
+    }
+    .btn-rto:hover { background: rgba(255,255,255,.15); }
+    .live-badge {
+      background: var(--gold); color: var(--white);
+      padding: 5px 14px; border-radius: 4px;
+      font-size: 13px; font-weight: 700;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .live-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--white); animation: pulse 1.4s infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+    /* ── TICKER ── */
+    .ticker {
+      background: #d4edda; border-bottom: 1px solid var(--green-border);
+      padding: 8px 28px; font-size: 12.5px; color: var(--green-dark);
+      display: flex; gap: 20px; overflow: hidden;
+    }
+    .ticker span { white-space: nowrap; }
+
+    /* ── MAIN CONTENT ── */
+    main { max-width: 1200px; margin: 0 auto; padding: 30px 20px 60px; }
+
+    .section-title {
+      font-size: 22px; font-weight: 700; color: var(--text);
+      display: flex; align-items: center; gap: 10px; margin-bottom: 6px;
+    }
+    .section-sub { font-size: 14px; color: var(--muted); margin-bottom: 24px; }
+
+    /* ── SERVICE CARDS — 2 columns now ── */
+    .service-grid {
+      display: grid; grid-template-columns: repeat(2, 1fr);
+      gap: 18px; margin-bottom: 32px;
+    }
+    .service-card {
+      background: var(--green-dark); color: var(--white);
+      border-radius: 10px; padding: 32px 20px 24px;
+      cursor: pointer; text-align: center;
+      transition: transform .2s, box-shadow .2s;
+      border: 3px solid transparent;
+    }
+    .service-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,.18); }
+    .service-card.active { border-color: var(--gold); }
+    .service-icon { font-size: 38px; margin-bottom: 12px; display: block; }
+    .service-card h3 { font-size: 14px; letter-spacing: 1px; margin-bottom: 10px; }
+    .service-card p { font-size: 13px; color: #a8d5b0; line-height: 1.5; }
+
+    /* ── PANEL ── */
+    .panel {
+      background: var(--green-dark); border-radius: 10px;
+      overflow: hidden; margin-bottom: 24px;
+    }
+    .panel-header {
+      padding: 14px 22px; display: flex; align-items: center;
+      gap: 10px; color: var(--white);
+      font-size: 13px; font-weight: 700; letter-spacing: .8px;
+    }
+    .panel-body { background: var(--white); padding: 24px; }
+
+    /* ── UPLOAD ZONE ── */
+    .drop-zone {
+      border: 2.5px dashed var(--green-border); border-radius: 10px;
+      padding: 36px 20px; text-align: center;
+      cursor: pointer; transition: border-color .2s, background .2s;
+      background: var(--white);
+    }
+    .drop-zone:hover, .drop-zone.drag-over {
+      border-color: var(--green-dark); background: var(--green-light);
+    }
+    .drop-icon {
+      width: 64px; height: 64px; border-radius: 50%;
+      background: var(--green-light); border: 2px solid var(--green-border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 26px; margin: 0 auto 14px;
+    }
+    .drop-zone h3 { font-size: 16px; font-weight: 700; margin-bottom: 6px; color: var(--green-dark); }
+    .drop-zone p { font-size: 13px; color: var(--muted); margin-bottom: 14px; }
+    .format-badges { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+    .badge {
+      border: 1.5px solid var(--green-border); border-radius: 5px;
+      padding: 4px 12px; font-size: 12px; font-weight: 600;
+      color: var(--green-dark);
+    }
+    input[type=file] { display: none; }
+
+    /* ── PREVIEW ── */
+    .preview-wrap {
+      border-radius: 8px; overflow: hidden;
+      border: 1px solid var(--green-border); margin-bottom: 18px;
+      display: none;
+    }
+    .preview-wrap img {
+      display: block; width: 100%; max-height: 420px;
+      object-fit: contain; background: #000;
+    }
+
+    /* ── ACTION BUTTONS ── */
+    .action-row { display: flex; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
+    .btn-detect {
+      background: var(--green-dark); color: var(--white);
+      border: none; padding: 12px 28px; border-radius: 7px;
+      font-size: 14px; font-weight: 700; cursor: pointer;
+      display: flex; align-items: center; gap: 8px;
+      transition: background .2s;
+    }
+    .btn-detect:hover { background: #123e1c; }
+    .btn-detect:disabled { background: #888; cursor: not-allowed; }
+    .btn-clear {
+      background: transparent; border: 2px solid var(--green-dark);
+      color: var(--green-dark); padding: 12px 24px; border-radius: 7px;
+      font-size: 14px; font-weight: 600; cursor: pointer;
+      transition: background .2s;
+    }
+    .btn-clear:hover { background: var(--green-light); }
+
+    /* ── STATUS ── */
+    .status-box {
+      background: var(--green-light); border: 1.5px solid var(--green-border);
+      border-radius: 7px; padding: 12px 18px;
+      font-size: 13.5px; color: var(--green-dark);
+      margin-bottom: 18px; display: none;
+      align-items: center; gap: 10px;
+    }
+    .status-box.error { background: #fdf0ee; border-color: #e8b4ae; color: var(--red); }
+
+    /* ── RESULTS GRID ── */
+    .results-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media(max-width:700px) { .results-grid { grid-template-columns: 1fr; } }
+
+    .result-panel { border-radius: 10px; overflow: hidden; border: 1px solid var(--green-border); }
+    .result-panel-header {
+      background: var(--green-light); padding: 12px 18px;
+      font-size: 13px; font-weight: 700; letter-spacing: .6px;
+      border-bottom: 1px solid var(--green-border);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .result-panel-body { padding: 18px; background: var(--white); }
+    .result-panel-body img { width: 100%; border-radius: 6px; border: 1px solid var(--green-border); }
+
+    /* ── PLATE DISPLAY ── */
+    .plate-display {
+      border: 3px solid #222; border-radius: 8px;
+      padding: 10px 20px; margin-bottom: 16px;
+      display: flex; align-items: center; gap: 12px;
+      background: var(--white);
+    }
+    .ind-flag { display: flex; flex-direction: column; width: 10px; }
+    .ind-flag span { height: 10px; }
+    .ind-label {
+      font-size: 10px; font-weight: 700; color: #333;
+      text-align: center; margin-top: 2px;
+    }
+    .plate-text { font-size: 28px; font-weight: 800; letter-spacing: 3px; color: #111; }
+
+    .conf-row { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+    .conf-badge {
+      padding: 5px 14px; border-radius: 20px; font-size: 12px; font-weight: 700;
+      border: 1.5px solid;
+    }
+    .conf-valid { color: #1a6b2a; border-color: #1a6b2a; background: #e8f5eb; }
+    .conf-high { color: var(--green-dark); border-color: var(--green-dark); background: #e0f0e5; }
+    .conf-med  { color: #7a5c00; border-color: #c8a030; background: #fef9e7; }
+    .conf-low  { color: #8b2020; border-color: #c0392b; background: #fdf0ee; }
+
+    /* ── DETAIL TABLE ── */
+    .detail-table { width: 100%; border-collapse: collapse; }
+    .detail-table tr { border-bottom: 1px solid var(--green-border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 10px 6px; font-size: 13.5px; }
+    .detail-table td:first-child { color: var(--muted); width: 44%; }
+    .detail-table td:last-child { font-weight: 600; color: var(--text); }
+    .det-method { font-size: 11.5px; color: var(--muted); margin-top: 12px; }
+
+    /* ── PIPELINE ── */
+    .pipeline-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 14px; margin-top: 8px;
+    }
+    .pipeline-card {
+      border: 1px solid var(--green-border); border-radius: 8px;
+      overflow: hidden; background: var(--white);
+    }
+    .pipeline-card img { width: 100%; height: 100px; object-fit: cover; display: block; }
+    .pipeline-card-info { padding: 8px 10px; }
+    .pipeline-card-info h4 { font-size: 12px; font-weight: 700; color: var(--green-dark); }
+    .pipeline-card-info p { font-size: 11px; color: var(--muted); margin-top: 3px; line-height: 1.4; }
+
+    /* ── MANUAL LOOKUP ── */
+    .manual-input-row {
+      display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+    }
+    .plate-input {
+      flex: 1; min-width: 200px; padding: 12px 16px;
+      border: 2px solid var(--green-border); border-radius: 7px;
+      font-size: 16px; font-family: monospace; font-weight: 700;
+      letter-spacing: 2px; text-transform: uppercase;
+      color: var(--text); outline: none;
+    }
+    .plate-input:focus { border-color: var(--green-dark); }
+    .sample-plates { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+    .sample-btn {
+      background: var(--green-light); border: 1.5px solid var(--green-border);
+      color: var(--green-dark); padding: 5px 12px; border-radius: 5px;
+      font-size: 12px; font-family: monospace; font-weight: 600; cursor: pointer;
+    }
+    .sample-btn:hover { background: #c8e6ce; }
+
+    .spinner {
+      width: 20px; height: 20px; border: 3px solid rgba(255,255,255,.3);
+      border-top-color: var(--white); border-radius: 50%;
+      animation: spin .8s linear infinite; display: inline-block;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── TABS ── */
+    .tab-bar { display: flex; gap: 0; border-bottom: 2px solid var(--green-border); margin-bottom: 18px; }
+    .tab-btn {
+      padding: 10px 22px; font-size: 13px; font-weight: 600;
+      cursor: pointer; border: none; background: none; color: var(--muted);
+      border-bottom: 3px solid transparent; margin-bottom: -2px;
+    }
+    .tab-btn.active { color: var(--green-dark); border-bottom-color: var(--green-dark); }
+  </style>
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav>
+  <div class="nav-brand">
+    <div class="nav-logo">🚗</div>
+    <div>
+      <div class="nav-title">Number Plate Detection System</div>
+      <div class="nav-sub">MINISTRY OF ROAD TRANSPORT &amp; HIGHWAYS — INDIA</div>
+    </div>
+  </div>
+  <div class="nav-right">
+    <button class="btn-rto" onclick="showRTOModal()">INDIA RTO</button>
+    <div class="live-badge"><div class="live-dot"></div> LIVE</div>
+  </div>
+</nav>
+
+<!-- TICKER -->
+<div class="ticker">
+  <span>🇮🇳 &nbsp;Official Vehicle Number Plate Recognition System</span>
+  <span>|&nbsp; Powered by OpenCV &amp; Tesseract OCR</span>
+  <span>|&nbsp; All 28 States &amp; 8 UTs Supported</span>
+  <span>|&nbsp; BH Series &amp; Electric Vehicle Detection Enabled</span>
+</div>
+
+<main>
+  <div class="section-title">🔍 Vehicle Detection Services</div>
+  <div class="section-sub">Select a service below to get started</div>
+
+  <!-- SERVICE CARDS — 2 cards only -->
+  <div class="service-grid">
+    <div class="service-card active" id="card-image" onclick="switchService('image')">
+      <span class="service-icon">📷</span>
+      <h3>IMAGE DETECTION</h3>
+      <p>Upload a vehicle photo to detect and read the number plate instantly using image processing.</p>
+    </div>
+    <div class="service-card" id="card-manual" onclick="switchService('manual')">
+      <span class="service-icon">⌨️</span>
+      <h3>MANUAL LOOKUP</h3>
+      <p>Enter a number plate manually to get complete state, RTO office and vehicle details.</p>
+    </div>
+  </div>
+
+  <!-- ═══════════ IMAGE SECTION ═══════════ -->
+  <div id="section-image">
+    <div class="panel">
+      <div class="panel-header">📷 &nbsp;IMAGE DETECTION</div>
+      <div class="panel-body">
+        <div class="drop-zone" id="imgDropZone"
+             onclick="document.getElementById('imgFile').click()"
+             ondragover="handleDrag(event,'imgDropZone')"
+             ondragleave="handleDragLeave(event,'imgDropZone')"
+             ondrop="handleDrop(event,'image')">
+          <div class="drop-icon">🖼️</div>
+          <h3>Upload Vehicle Image</h3>
+          <p><strong>Click to browse</strong> or drag &amp; drop a vehicle photo</p>
+          <div class="format-badges">
+            <span class="badge">JPG</span><span class="badge">PNG</span>
+            <span class="badge">WEBP</span><span class="badge">BMP</span>
+          </div>
+        </div>
+        <input type="file" id="imgFile" accept=".jpg,.jpeg,.png,.webp,.bmp"
+               onchange="handleImageSelect(this)">
+
+        <div class="preview-wrap" id="imgPreviewWrap">
+          <img id="imgPreview" src="" alt="Preview">
+        </div>
+
+        <div class="action-row">
+          <button class="btn-detect" id="btnDetectImg" onclick="detectImage()" disabled>
+            🔍 DETECT NUMBER PLATE
+          </button>
+          <button class="btn-clear" onclick="clearImage()">✕ CLEAR</button>
+        </div>
+
+        <div class="status-box" id="imgStatus"></div>
+
+        <div id="imgResults" style="display:none">
+          <div class="tab-bar">
+            <button class="tab-btn active" onclick="imgTab(this,'detection')">Detection Results</button>
+            <button class="tab-btn" onclick="imgTab(this,'pipeline')">Processing Pipeline (17 Steps)</button>
+          </div>
+          <div id="imgTabDetection">
+            <div class="results-grid">
+              <div class="result-panel">
+                <div class="result-panel-header">🖼️ &nbsp;ANNOTATED IMAGE</div>
+                <div class="result-panel-body">
+                  <img id="imgAnnotated" src="" alt="Annotated">
+                </div>
+              </div>
+              <div class="result-panel">
+                <div class="result-panel-header">🚗 &nbsp;VEHICLE DETAILS</div>
+                <div class="result-panel-body" id="imgVehicleDetails"></div>
+              </div>
+            </div>
+          </div>
+          <div id="imgTabPipeline" style="display:none">
+            <div class="pipeline-grid" id="pipelineGrid"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ MANUAL SECTION ═══════════ -->
+  <div id="section-manual" style="display:none">
+    <div class="panel">
+      <div class="panel-header">⌨️ &nbsp;MANUAL PLATE LOOKUP</div>
+      <div class="panel-body">
+        <div class="manual-input-row">
+          <input type="text" class="plate-input" id="manualInput"
+                 placeholder="e.g. MH12AB1234"
+                 oninput="this.value=this.value.toUpperCase()"
+                 onkeydown="if(event.key==='Enter') lookupManual()">
+          <button class="btn-detect" onclick="lookupManual()">🔍 LOOKUP</button>
+        </div>
+        <div class="sample-plates">
+          <strong style="font-size:12px;color:var(--muted)">Samples:</strong>
+          <button class="sample-btn" onclick="sampleLookup('MH12AB1234')">MH12AB1234</button>
+          <button class="sample-btn" onclick="sampleLookup('DL01CA0001')">DL01CA0001</button>
+          <button class="sample-btn" onclick="sampleLookup('KA05MG7890')">KA05MG7890</button>
+          <button class="sample-btn" onclick="sampleLookup('22BH1234E')">22BH1234E</button>
+          <button class="sample-btn" onclick="sampleLookup('GJ01W1234')">GJ01W1234</button>
+          <button class="sample-btn" onclick="sampleLookup('HR26CK8574')">HR26CK8574</button>
+        </div>
+        <div class="status-box" id="manualStatus"></div>
+        <div id="manualResults" style="display:none; margin-top:20px;"></div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+// ── SERVICE SWITCHING ──
+function switchService(name) {
+  ['image','manual'].forEach(s => {
+    document.getElementById('section-' + s).style.display = s === name ? '' : 'none';
+    document.getElementById('card-' + s).classList.toggle('active', s === name);
+  });
+}
+
+// ── DRAG & DROP ──
+function handleDrag(e, id) {
+  e.preventDefault();
+  document.getElementById(id).classList.add('drag-over');
+}
+function handleDragLeave(e, id) {
+  document.getElementById(id).classList.remove('drag-over');
+}
+function handleDrop(e, type) {
+  e.preventDefault();
+  document.getElementById('imgDropZone').classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) loadImageFile(file);
+}
+
+// ── IMAGE ──
+let imgFileObj = null;
+function handleImageSelect(inp) {
+  if (inp.files[0]) loadImageFile(inp.files[0]);
+}
+function loadImageFile(file) {
+  imgFileObj = file;
+  const url = URL.createObjectURL(file);
+  document.getElementById('imgPreview').src = url;
+  document.getElementById('imgPreviewWrap').style.display = '';
+  document.getElementById('btnDetectImg').disabled = false;
+  document.getElementById('imgResults').style.display = 'none';
+  setStatus('imgStatus', '', false, false);
+}
+function clearImage() {
+  imgFileObj = null;
+  document.getElementById('imgFile').value = '';
+  document.getElementById('imgPreviewWrap').style.display = 'none';
+  document.getElementById('btnDetectImg').disabled = true;
+  document.getElementById('imgResults').style.display = 'none';
+  setStatus('imgStatus', '', false, false);
+}
+
+async function detectImage() {
+  if (!imgFileObj) return;
+  const btn = document.getElementById('btnDetectImg');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Detecting...';
+  setStatus('imgStatus', '⏳ Processing image...', false, true);
+
+  const fd = new FormData();
+  fd.append('file', imgFileObj);
+
+  try {
+    const res = await fetch('/detect/image', { method: 'POST', body: fd });
+    const data = await res.json();
+
+    if (data.error) {
+      setStatus('imgStatus', '❌ ' + data.error, true, true);
+    } else {
+      setStatus('imgStatus',
+        `✅ Detected ${data.total_plates || 0} region(s) in ${data.image_size || ''} image`,
+        false, true);
+      renderImageResults(data);
+    }
+  } catch (err) {
+    setStatus('imgStatus', '❌ Network error: ' + err.message, true, true);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '🔍 DETECT NUMBER PLATE';
+  }
+}
+
+function renderImageResults(data) {
+  const wrap = document.getElementById('imgResults');
+  wrap.style.display = '';
+
+  if (data.annotated_image_url) {
+    document.getElementById('imgAnnotated').src = data.annotated_image_url + '?t=' + Date.now();
+  } else if (data.uploaded_image_url) {
+    document.getElementById('imgAnnotated').src = data.uploaded_image_url;
+  }
+
+  const det = document.getElementById('imgVehicleDetails');
+  const plates = data.plates_found || [];
+  if (plates.length === 0) {
+    det.innerHTML = '<p style="color:var(--muted);font-size:13px;">No plates detected. Try a clearer image or use Manual Lookup.</p>';
+    return;
+  }
+
+  const p = plates[0];
+  const info = p.plate_info || {};
+  det.innerHTML = buildPlateHTML(p.ocr_text, info, p.detection_method);
+
+  const grid = document.getElementById('pipelineGrid');
+  grid.innerHTML = '';
+  (data.pipeline_steps || []).forEach(step => {
+    grid.innerHTML += `
+      <div class="pipeline-card">
+        <img src="${step.url}?t=${Date.now()}" alt="${step.title}" loading="lazy">
+        <div class="pipeline-card-info">
+          <h4>${step.title}</h4>
+          <p>${step.description}</p>
+        </div>
+      </div>`;
+  });
+}
+
+function buildPlateHTML(plateText, info, method) {
+  const conf = (info.confidence || 'Low').toLowerCase();
+  const confClass = conf === 'high' ? 'conf-high' : conf === 'medium' ? 'conf-med' : 'conf-low';
+
+  const rows = [
+    ['Plate Type',    info.plate_type    || '—'],
+    ['State',         info.state         || '—'],
+    ['RTO Office',    info.rto_office    || '—'],
+    ['Series',        info.series        || '—'],
+    ['Vehicle No.',   info.vehicle_number|| '—'],
+    ['Vehicle Class', info.vehicle_class || '—'],
+    ['Fuel Type',     info.fuel_type     || 'Unknown'],
+  ];
+  if (info.is_bh_series)
+    rows.push(['Registration Year', info.registration_year || '—']);
+
+  return `
+    <div class="plate-display">
+      <div>
+        <div class="ind-flag">
+          <span style="background:#FF9933"></span>
+          <span style="background:#fff"></span>
+          <span style="background:#138808"></span>
+        </div>
+        <div class="ind-label">IND</div>
+      </div>
+      <div class="plate-text">${plateText || '—'}</div>
+    </div>
+    <div class="conf-row">
+      ${info.valid ? '<span class="conf-badge conf-valid">✓ VALID FORMAT</span>' : ''}
+      <span class="conf-badge ${confClass}">CONFIDENCE: ${(info.confidence||'LOW').toUpperCase()}</span>
+      ${info.is_electric ? '<span class="conf-badge" style="color:#1565c0;border-color:#1565c0;background:#e3f2fd">⚡ ELECTRIC</span>' : ''}
+      ${info.is_bh_series ? '<span class="conf-badge" style="color:#6a1b9a;border-color:#9c27b0;background:#f3e5f5">🇮🇳 BH SERIES</span>' : ''}
+    </div>
+    <table class="detail-table">
+      ${rows.map(([k,v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join('')}
+    </table>
+    ${method ? `<div class="det-method">Detection method: ${method}</div>` : ''}
+  `;
+}
+
+function imgTab(btn, tab) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('imgTabDetection').style.display = tab === 'detection' ? '' : 'none';
+  document.getElementById('imgTabPipeline').style.display  = tab === 'pipeline'  ? '' : 'none';
+}
+
+// ── MANUAL ──
+async function lookupManual() {
+  const text = document.getElementById('manualInput').value.trim();
+  if (!text) return;
+  setStatus('manualStatus', '⏳ Looking up...', false, true);
+
+  try {
+    const res = await fetch('/parse', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ plate_text: text })
+    });
+    const data = await res.json();
+    setStatus('manualStatus', '', false, false);
+
+    const wrap = document.getElementById('manualResults');
+    wrap.style.display = '';
+    wrap.innerHTML = `
+      <div class="result-panel" style="max-width:520px;">
+        <div class="result-panel-header">🚗 &nbsp;VEHICLE DETAILS</div>
+        <div class="result-panel-body">
+          ${buildPlateHTML(text, data, '')}
+        </div>
+      </div>`;
+  } catch (err) {
+    setStatus('manualStatus', '❌ Error: ' + err.message, true, true);
+  }
+}
+function sampleLookup(plate) {
+  document.getElementById('manualInput').value = plate;
+  lookupManual();
+}
+
+// ── HELPERS ──
+function setStatus(id, msg, isError, show) {
+  const el = document.getElementById(id);
+  el.style.display = show && msg ? 'flex' : 'none';
+  el.textContent = msg;
+  el.classList.toggle('error', isError);
+}
+
+function showRTOModal() {
+  alert('India RTO Database\n\nAll 28 States + 8 Union Territories supported.\nUse Manual Lookup to search any state code or RTO office.');
+}
+</script>
+</body>
+</html>
